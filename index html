@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Sommerduell – Time Warp</title>
+  <style>
+    :root{
+      --shell:#d7d7d7;
+      --shell-dark:#bdbdbd;
+      --shell-shadow:#9e9e9e;
+      --accent:#7b1fa2;         /* 80er-ish purple */
+      --accent2:#e91e63;        /* neon pink */
+      --screen:#b8c9a5;         /* green LCD */
+      --screen2:#a9bb94;
+      --ink:#1a2a18;            /* LCD "black" */
+      --btn:#2b2b2b;
+      --btn2:#3a3a3a;
+      --danger:#b71c1c;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background:#0f0f12;
+      color:#fff;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height:100vh;
+      padding:14px;
+    }
+    .wrap{ width:min(520px, 100%); }
+    .handheld{
+      background:linear-gradient(180deg, var(--shell), var(--shell-dark));
+      border-radius:26px 26px 44px 44px;
+      padding:18px 16px 18px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,255,255,.35);
+      position:relative;
+      border:2px solid rgba(0,0,0,.18);
+    }
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:10px;
+      gap:10px;
+    }
+    .brand{
+      font-weight:800;
+      letter-spacing:.06em;
+      color:#222;
+      text-transform:uppercase;
+      font-size:12px;
+    }
+    .power{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      color:#111;
+      font-weight:700;
+    }
+    .led{
+      width:10px;height:10px;border-radius:50%;
+      background:var(--danger);
+      box-shadow:0 0 10px rgba(183,28,28,.7);
+    }
+    .screen-frame{
+      background:linear-gradient(180deg, #5a5a5a, #3e3e3e);
+      border-radius:18px;
+      padding:14px;
+      box-shadow: inset 0 3px 8px rgba(0,0,0,.55);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .screen{
+      background:linear-gradient(180deg, var(--screen), var(--screen2));
+      border-radius:10px;
+      height:320px;
+      position:relative;
+      overflow:hidden;
+      border:2px solid rgba(0,0,0,.28);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.08);
+      touch-action:none;
+    }
+    canvas{ width:100%; height:100%; display:block; image-rendering: pixelated; }
+    .screen-overlay{
+      position:absolute; inset:0;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      padding:10px;
+      pointer-events:none;
+    }
+    .hud{
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      font-family: monospace;
+      color:var(--ink);
+      font-weight:700;
+      font-size:12px;
+      text-shadow: 0 1px 0 rgba(255,255,255,.25);
+      opacity:.95;
+    }
+    .hud span{ background:rgba(255,255,255,.18); padding:3px 6px; border-radius:8px; }
+    .hint{
+      align-self:flex-start;
+      background:rgba(0,0,0,.12);
+      color:var(--ink);
+      padding:6px 8px;
+      border-radius:10px;
+      font-family: monospace;
+      font-size:12px;
+      max-width:100%;
+      line-height:1.2;
+      opacity:.95;
+    }
+
+    .controls{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+      margin-top:14px;
+      align-items:end;
+    }
+    .dpad{
+      justify-self:start;
+      position:relative;
+      width:150px;
+      height:150px;
+      background:transparent;
+    }
+    .dpad button{
+      position:absolute;
+      width:54px;height:54px;
+      border:none;
+      border-radius:12px;
+      background:linear-gradient(180deg, var(--btn2), var(--btn));
+      box-shadow: 0 6px 0 rgba(0,0,0,.35);
+      color:#eee;
+      font-weight:900;
+      font-size:16px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dpad button:active{ transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.35); }
+    .up{ left:48px; top:0; }
+    .down{ left:48px; bottom:0; }
+    .left{ left:0; top:48px; }
+    .right{ right:0; top:48px; }
+
+    .ab{
+      justify-self:end;
+      display:flex;
+      gap:12px;
+      align-items:flex-end;
+      margin-right:4px;
+    }
+    .ab button{
+      width:64px; height:64px;
+      border:none;
+      border-radius:999px;
+      background: radial-gradient(circle at 30% 25%, #ff4aa6, #b3005c);
+      box-shadow: 0 8px 0 rgba(0,0,0,.35);
+      color:#fff;
+      font-weight:900;
+      font-size:18px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ab button:nth-child(1){
+      background: radial-gradient(circle at 30% 25%, #9c4dff, #4a148c);
+    }
+    .ab button:active{ transform:translateY(5px); box-shadow:0 3px 0 rgba(0,0,0,.35); }
+
+    .meta{
+      display:flex;
+      justify-content:center;
+      gap:10px;
+      margin-top:10px;
+    }
+    .meta button{
+      border:none;
+      padding:10px 12px;
+      border-radius:999px;
+      background:rgba(0,0,0,.25);
+      color:#fff;
+      font-weight:800;
+      letter-spacing:.02em;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .meta button:active{ transform:scale(.98); }
+
+    .small{
+      margin-top:10px;
+      font-size:12px;
+      color:rgba(255,255,255,.65);
+      text-align:center;
+      line-height:1.35;
+    }
+    .small code{ color:#fff; }
+
+    @media (max-width:380px){
+      .screen{ height:290px; }
+      .dpad{ width:140px; height:140px; }
+      .dpad button{ width:50px;height:50px; }
+      .ab button{ width:60px;height:60px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="handheld">
+    <div class="topbar">
+      <div class="brand">CLASSIC HANDHELD • TIME WARP</div>
+      <div class="power"><div class="led"></div>POWER</div>
+    </div>
+
+    <div class="screen-frame">
+      <div class="screen" id="screen">
+        <canvas id="c" width="240" height="320"></canvas>
+        <div class="screen-overlay">
+          <div class="hud">
+            <span id="hudStage">STAGE: BOOT</span>
+            <span id="hudScore">SCORE: 0000</span>
+            <span id="hudTime">TIME: 00:00</span>
+          </div>
+          <div class="hint" id="hint">Tip: Tippe START, um loszulegen.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="dpad" aria-label="Steuerkreuz">
+        <button class="up" id="btnUp">▲</button>
+        <button class="down" id="btnDown">▼</button>
+        <button class="left" id="btnLeft">◀</button>
+        <button class="right" id="btnRight">▶</button>
+      </div>
+
+      <div class="ab">
+        <button id="btnA">A</button>
+        <button id="btnB">B</button>
+      </div>
+    </div>
+
+    <div class="meta">
+      <button id="btnSelect">SELECT</button>
+      <button id="btnStart">START</button>
+      <button id="btnMute">SOUND: ON</button>
+    </div>
+
+    <div class="small">
+      Wenn jemand festhängt: halte <code>SELECT</code> 2 Sekunden → Level überspringen (nur als Notfall).<br>
+      (Du kannst das später auch entfernen.)
+    </div>
+  </div>
+</div>
+
+<script>
+/** =========================
+ *  ANPASSEN NUR HIER (Text)
+ *  ========================= */
+const INVITE = {
+  title: "SOMMERDUELL DER PAARE",
+  subtitle: "TIME WARP EDITION 70 | 80 | 90",
+  date: "Sa, 20.06.2026",
+  time: "12:00 Uhr",
+  address1: "Bahnhofstr. 8",
+  address2: "01259 Dresden (Garten)",
+  dresscode: "70s | 80s | 90s – freie Wahl",
+  tagline: "Spiele. Chaos. Ruhm. Ehre.",
+};
+
+/** =========================
+ *  ENGINE
+ *  ========================= */
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+
+const hudStage = document.getElementById("hudStage");
+const hudScore = document.getElementById("hudScore");
+const hudTime  = document.getElementById("hudTime");
+const hintEl   = document.getElementById("hint");
+
+const btn = {
+  up:document.getElementById("btnUp"),
+  down:document.getElementById("btnDown"),
+  left:document.getElementById("btnLeft"),
+  right:document.getElementById("btnRight"),
+  A:document.getElementById("btnA"),
+  B:document.getElementById("btnB"),
+  start:document.getElementById("btnStart"),
+  select:document.getElementById("btnSelect"),
+  mute:document.getElementById("btnMute"),
+};
+
+let muted = false;
+
+// --- tiny 8-bit-ish sound via WebAudio beeps (no files needed)
+let audioCtx = null;
+function ensureAudio(){
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function beep(freq=440, dur=0.06, type="square", gain=0.04){
+  if (muted) return;
+  ensureAudio();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = gain;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + dur);
+}
+function fanfare(){
+  if (muted) return;
+  const notes = [523,659,784,988];
+  let t=0;
+  notes.forEach((f,i)=>{
+    setTimeout(()=>beep(f,0.07,"square",0.05), t);
+    t += 90;
+  });
+}
+function blip(){ beep(740,0.04,"square",0.035); }
+function bonk(){ beep(180,0.08,"square",0.05); }
+function startSound(){ beep(330,0.08,"square",0.05); setTimeout(()=>beep(660,0.08,"square",0.05),90); }
+
+// --- input
+const input = { up:false,down:false,left:false,right:false,A:false,B:false,start:false,select:false };
+function bindHold(el, key){
+  let pressTimer=null;
+  const down = (e)=>{ e.preventDefault(); input[key]=true; };
+  const up   = (e)=>{ e.preventDefault(); input[key]=false; };
+
+  el.addEventListener("touchstart", down, {passive:false});
+  el.addEventListener("touchend", up, {passive:false});
+  el.addEventListener("mousedown", down);
+  el.addEventListener("mouseup", up);
+  el.addEventListener("mouseleave", up);
+}
+["up","down","left","right","A","B"].forEach(k=>bindHold(btn[k], k));
+
+btn.start.addEventListener("click", ()=>{ input.start=true; setTimeout(()=>input.start=false,60); });
+btn.start.addEventListener("touchstart", (e)=>{ e.preventDefault(); input.start=true; setTimeout(()=>input.start=false,60); }, {passive:false});
+
+let selectHoldTimer=null;
+btn.select.addEventListener("touchstart",(e)=>{
+  e.preventDefault();
+  input.select=true;
+  selectHoldTimer=setTimeout(()=>{
+    // emergency skip
+    if (!game.finished) { skipStage(); fanfare(); }
+  }, 2000);
+},{passive:false});
+btn.select.addEventListener("touchend",(e)=>{
+  e.preventDefault();
+  input.select=false;
+  clearTimeout(selectHoldTimer);
+},{passive:false});
+btn.select.addEventListener("mousedown",()=>{
+  input.select=true;
+  selectHoldTimer=setTimeout(()=>{ if(!game.finished){ skipStage(); fanfare(); } },2000);
+});
+btn.select.addEventListener("mouseup",()=>{ input.select=false; clearTimeout(selectHoldTimer); });
+
+btn.mute.addEventListener("click", ()=>{
+  muted = !muted;
+  btn.mute.textContent = muted ? "SOUND: OFF" : "SOUND: ON";
+  if (!muted) startSound();
+});
+
+// keyboard (optional, for you on PC)
+window.addEventListener("keydown",(e)=>{
+  if(e.key==="ArrowUp") input.up=true;
+  if(e.key==="ArrowDown") input.down=true;
+  if(e.key==="ArrowLeft") input.left=true;
+  if(e.key==="ArrowRight") input.right=true;
+  if(e.key.toLowerCase()==="a") input.A=true;
+  if(e.key.toLowerCase()==="b") input.B=true;
+  if(e.key==="Enter") input.start=true;
+});
+window.addEventListener("keyup",(e)=>{
+  if(e.key==="ArrowUp") input.up=false;
+  if(e.key==="ArrowDown") input.down=false;
+  if(e.key==="ArrowLeft") input.left=false;
+  if(e.key==="ArrowRight") input.right=false;
+  if(e.key.toLowerCase()==="a") input.A=false;
+  if(e.key.toLowerCase()==="b") input.B=false;
+  if(e.key==="Enter") input.start=false;
+});
+
+// --- game state
+const STAGES = ["BOOT","70s","80s","90s","FINAL"];
+const game = {
+  stageIndex:0,
+  stage:"BOOT",
+  score:0,
+  stageTime:0,
+  totalTime:0,
+  finished:false,
+};
+
+// target total ~10 minutes, but fun (not grindy):
+// Boot 45s max, 70s ~3:15, 80s ~3:15, 90s ~2:45, Final unlimited
+const stageDur = { BOOT:45, "70s":195, "80s":195, "90s":165, FINAL:9999 };
+
+// Pixel font-ish draw helpers
+function pxText(text,x,y,scale=1){
+  // crude pixel text using monospace and snapping positions
+  ctx.save();
+  ctx.fillStyle = "#1a2a18";
+  ctx.font = `${8*scale}px monospace`;
+  ctx.textBaseline="top";
+  ctx.fillText(text, Math.round(x), Math.round(y));
+  ctx.restore();
+}
+function box(x,y,w,h){
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
+  ctx.strokeRect(x+0.5,y+0.5,w-1,h-1);
+}
+
+// --- stage objects
+let bootBlink = 0;
+
+// 70s: quiz + collect peace signs
+const quiz = {
+  qIndex:0,
+  questions:[
+    { q:"70s-CHECK: Welche Farben?", a:["NEON PINK/TÜRKIS","ORANGE/BRAUN/SENF","SCHWARZ/SILBER"], correct:1 },
+    { q:"70s-VIBE: Was passt?", a:["FLOWER POWER","CYBERPUNK","EMO"], correct:0 },
+    { q:"70s-STYLE: Hose?", a:["SCHLAGHOSE","SKINNY JEANS","CARGO"], correct:0 },
+  ],
+  selected:0,
+  mode:"QUIZ", // QUIZ -> CATCH
+  caught:0,
+  target:12,
+};
+let peace = []; // falling icons
+
+// 80s: color reaction
+const react = {
+  prompt:"WAIT…",
+  state:"WAIT", // WAIT -> SHOW
+  timer:0,
+  window:0,
+  shownType:null, // "A" or "B"
+  hits:0,
+  misses:0,
+  target:18
+};
+
+// 90s: dodge & collect CDs
+const arcade = {
+  x:120, y:260,
+  vx:0,
+  cds:[],
+  collected:0,
+  target:14,
+  spawnTimer:0,
+  speed:42, // px/sec falling
+};
+
+function resetStageObjects(stage){
+  if(stage==="BOOT"){
+    bootBlink=0;
+    hint("Tippe START. Sound braucht evtl. einen ersten Tap.");
+  }
+  if(stage==="70s"){
+    Object.assign(quiz,{ qIndex:0, selected:0, mode:"QUIZ", caught:0, target:12 });
+    peace = [];
+    hint("70s: Antworte (A/B) und sammle Peace-Zeichen mit A.");
+  }
+  if(stage==="80s"){
+    Object.assign(react,{ prompt:"WAIT…", state:"WAIT", timer:0, window:0, shownType:null, hits:0, misses:0, target:18 });
+    hint("80s: Wenn PINK → B. Wenn BLAU → A. Nicht zu früh!");
+  }
+  if(stage==="90s"){
+    arcade.x=120; arcade.vx=0; arcade.cds=[]; arcade.collected=0; arcade.spawnTimer=0;
+    hint("90s: Bewege dich ◀▶ und sammle CDs (A zum Sprint).");
+  }
+  if(stage==="FINAL"){
+    hint("Mission erfüllt. Screenshot machen & freuen 😄");
+  }
+}
+
+function hint(t){ hintEl.textContent = t; }
+
+function nextStage(){
+  game.stageIndex = Math.min(game.stageIndex+1, STAGES.length-1);
+  game.stage = STAGES[game.stageIndex];
+  game.stageTime = 0;
+  hudStage.textContent = "STAGE: " + game.stage;
+  resetStageObjects(game.stage);
+  fanfare();
+}
+
+function skipStage(){
+  if(game.stage==="FINAL") return;
+  nextStage();
+}
+
+function fmtTime(sec){
+  const m = Math.floor(sec/60);
+  const s = Math.floor(sec%60);
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+function addScore(n){
+  game.score += n;
+  hudScore.textContent = "SCORE: " + String(game.score).padStart(4,"0");
+  blip();
+}
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
+// --- stage logic
+function updateBoot(dt){
+  bootBlink += dt;
+  if(input.start){
+    startSound();
+    addScore(10);
+    nextStage();
+  }
+  // auto-advance after a bit so it doesn't stall
+  if(game.stageTime > 12 && game.stageTime < 12.2){
+    beep(220,0.08); beep(440,0.06);
+  }
+  if(game.stageTime > stageDur.BOOT){
+    nextStage();
+  }
+}
+
+function update70s(dt){
+  if(quiz.mode==="QUIZ"){
+    // choose with left/right (optional), but mainly A/B
+    // A = option 1, B = option 2, Start = option 3 (fun)
+    if(input.A){
+      checkQuizAnswer(0);
+      input.A=false;
+    } else if(input.B){
+      checkQuizAnswer(1);
+      input.B=false;
+    } else if(input.start){
+      checkQuizAnswer(2);
+      input.start=false;
+    }
+  } else {
+    // catch mode
+    // spawn peace icons
+    if(peace.length < 10 && Math.random() < dt*0.9){
+      peace.push({ x: Math.random()*220+10, y:-10, vy: 25 + Math.random()*35 });
+    }
+    peace.forEach(p=>p.y += p.vy*dt);
+
+    // A to "collect" near bottom center (simple, no movement needed)
+    if(input.A){
+      input.A=false;
+      // collect any peace in bottom zone
+      const before = peace.length;
+      peace = peace.filter(p=>{
+        const inZone = p.y>220 && p.y<315 && p.x>40 && p.x<200;
+        if(inZone){
+          quiz.caught++;
+          addScore(15);
+          return false;
+        }
+        return true;
+      });
+      if(before===peace.length) bonk();
+      if(quiz.caught >= quiz.target){
+        nextStage();
+      }
+    }
+
+    // cleanup
+    peace = peace.filter(p=>p.y<340);
+    // time-based nudge so it ends
+    if(game.stageTime > stageDur["70s"]) nextStage();
+  }
+}
+
+function checkQuizAnswer(choice){
+  const q = quiz.questions[quiz.qIndex];
+  if(choice === q.correct){
+    addScore(120);
+    beep(660,0.05); beep(880,0.06);
+    quiz.qIndex++;
+    if(quiz.qIndex >= quiz.questions.length){
+      quiz.mode="CATCH";
+      hint("70s BONUS: Sammle 12 Peace-Zeichen! Tippe A, wenn sie unten sind.");
+    }
+  } else {
+    bonk();
+    addScore(5);
+    // tiny penalty but not frustrating
+  }
+}
+
+function update80s(dt){
+  // state machine
+  react.timer -= dt;
+  if(react.state==="WAIT"){
+    if(react.timer <= 0){
+      react.state="SHOW";
+      react.shownType = (Math.random() < 0.5) ? "A" : "B"; // A=blue, B=pink mapping is in hint
+      react.window = 0.85; // reaction window seconds
+      react.timer = react.window;
+      beep(520,0.05);
+    }
+  } else if(react.state==="SHOW"){
+    // correct input during window
+    const want = react.shownType; // "A" means press A, "B" means press B
+    const pressedA = input.A;
+    const pressedB = input.B;
+    if(pressedA || pressedB){
+      if((pressedA && want==="A") || (pressedB && want==="B")){
+        react.hits++;
+        addScore(90);
+        beep(880,0.04); beep(990,0.04);
+      } else {
+        react.misses++;
+        bonk();
+      }
+      input.A=false; input.B=false;
+      react.state="WAIT";
+      react.timer = 0.6 + Math.random()*1.2;
+    } else if(react.timer <= 0){
+      // missed
+      react.misses++;
+      bonk();
+      react.state="WAIT";
+      react.timer = 0.7 + Math.random()*1.2;
+    }
+  }
+
+  if(react.hits >= react.target){
+    nextStage();
+  }
+  if(game.stageTime > stageDur["80s"]) nextStage();
+}
+
+function update90s(dt){
+  const speed = input.A ? 120 : 80; // A = sprint
+  if(input.left) arcade.x -= speed*dt;
+  if(input.right) arcade.x += speed*dt;
+  arcade.x = clamp(arcade.x, 10, 230);
+
+  arcade.spawnTimer -= dt;
+  if(arcade.spawnTimer <= 0){
+    arcade.spawnTimer = 0.45 + Math.random()*0.55;
+    arcade.cds.push({ x: Math.random()*220+10, y:-12, r:6 });
+  }
+  arcade.cds.forEach(cd=>cd.y += arcade.speed*dt);
+
+  // collision: player is simple rectangle
+  const px = arcade.x, py = arcade.y;
+  arcade.cds = arcade.cds.filter(cd=>{
+    const hit = Math.abs(cd.x - px) < 14 && Math.abs(cd.y - py) < 14;
+    if(hit){
+      arcade.collected++;
+      addScore(70);
+      return false;
+    }
+    return cd.y < 340;
+  });
+
+  if(arcade.collected >= arcade.target) nextStage();
+  if(game.stageTime > stageDur["90s"]) nextStage();
+}
+
+function updateFinal(dt){
+  game.finished = true;
+}
+
+// --- render
+function clear(){
+  ctx.fillStyle = "rgba(0,0,0,0.08)";
+  ctx.fillRect(0,0,240,320);
+}
+
+function renderBoot(){
+  clear();
+  pxText("SYSTEM 1986", 18, 22, 2);
+  pxText("INITIALIZING...", 18, 48, 2);
+
+  const t = Math.floor(game.stageTime*2)%2===0;
+  pxText("TIME CORE ERROR", 18, 92, 2);
+  pxText("DECADES COLLISION", 18, 118, 2);
+  pxText("DETECTED!", 18, 144, 2);
+
+  if(t){
+    pxText("PRESS START", 46, 210, 3);
+  }
+  pxText("A/B = OK", 72, 260, 2);
+}
+
+function render70s(){
+  clear();
+  if(quiz.mode==="QUIZ"){
+    const q = quiz.questions[quiz.qIndex];
+    pxText("70s REPAIR", 56, 14, 2);
+    box(14, 44, 212, 70);
+    pxText(q.q, 18, 50, 2);
+
+    box(14, 130, 212, 146);
+    pxText("A: " + q.a[0], 18, 138, 2);
+    pxText("B: " + q.a[1], 18, 166, 2);
+    pxText("START: " + q.a[2], 18, 194, 2);
+
+    pxText("Q " + (quiz.qIndex+1) + "/3", 18, 286, 2);
+  } else {
+    pxText("70s BONUS CATCH", 26, 14, 2);
+    pxText("CATCH: " + quiz.caught + "/" + quiz.target, 56, 42, 2);
+
+    // catch zone
+    ctx.strokeStyle="rgba(0,0,0,0.35)";
+    ctx.strokeRect(40.5,220.5,160,95);
+
+    // peace icons
+    peace.forEach(p=>{
+      // simple pixel peace sign
+      const x=p.x|0, y=p.y|0;
+      ctx.fillStyle="rgba(26,42,24,0.9)";
+      ctx.fillRect(x-2,y,4,22);
+      ctx.fillRect(x-10,y+8,20,4);
+      ctx.beginPath();
+      ctx.arc(x,y+4,10,0,Math.PI*2);
+      ctx.strokeStyle="rgba(26,42,24,0.9)";
+      ctx.lineWidth=2;
+      ctx.stroke();
+    });
+
+    pxText("TIP: TAP A IN THE BOX", 18, 300, 1);
+  }
+}
+
+function render80s(){
+  clear();
+  pxText("80s NEON REACT", 22, 14, 2);
+
+  // reactor panel
+  box(20, 52, 200, 150);
+  pxText("HITS " + react.hits + "/" + react.target, 28, 60, 2);
+  pxText("MISSES " + react.misses, 28, 82, 2);
+
+  // show flash
+  if(react.state==="SHOW"){
+    if(react.shownType==="A"){
+      // BLUE -> press A
+      ctx.fillStyle="rgba(26,42,24,0.9)";
+      ctx.fillRect(40,120,160,50);
+      pxText("BLUE!", 78, 132, 3);
+      pxText("PRESS A", 64, 182, 2);
+    } else {
+      // PINK -> press B
+      ctx.fillStyle="rgba(26,42,24,0.9)";
+      ctx.fillRect(40,120,160,50);
+      pxText("PINK!", 78, 132, 3);
+      pxText("PRESS B", 64, 182, 2);
+    }
+  } else {
+    pxText("WAIT...", 84, 132, 3);
+    pxText("DON'T PANIC", 60, 182, 2);
+  }
+
+  pxText("TIP: EARLY PRESS = BONK", 18, 292, 1);
+}
+
+function render90s(){
+  clear();
+  pxText("90s CD RUN", 52, 14, 2);
+  pxText("CDs " + arcade.collected + "/" + arcade.target, 70, 42, 2);
+
+  // player
+  ctx.fillStyle="rgba(26,42,24,0.95)";
+  ctx.fillRect((arcade.x-10)|0, (arcade.y-10)|0, 20, 20);
+  pxText("YOU", (arcade.x-10)|0, (arcade.y+14)|0, 1);
+
+  // CDs
+  arcade.cds.forEach(cd=>{
+    ctx.strokeStyle="rgba(26,42,24,0.95)";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.arc(cd.x|0, cd.y|0, 8, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cd.x|0, cd.y|0, 2, 0, Math.PI*2);
+    ctx.stroke();
+  });
+
+  // lane hints
+  ctx.strokeStyle="rgba(0,0,0,0.22)";
+  ctx.strokeRect(10.5,70.5,219,230);
+
+  pxText("HOLD A = SPRINT", 18, 300, 1);
+}
+
+function renderFinal(){
+  clear();
+  pxText("MISSION COMPLETE!", 18, 18, 2);
+  pxText(INVITE.title, 18, 52, 2);
+  pxText(INVITE.subtitle, 18, 72, 1);
+
+  box(14, 92, 212, 150);
+  pxText(INVITE.date, 22, 100, 2);
+  pxText(INVITE.time, 22, 122, 2);
+  pxText(INVITE.address1, 22, 150, 2);
+  pxText(INVITE.address2, 22, 172, 2);
+  pxText("DRESSCODE:", 22, 200, 2);
+  pxText(INVITE.dresscode, 22, 222, 1);
+
+  box(14, 250, 212, 56);
+  pxText(INVITE.tagline, 22, 258, 2);
+  pxText("SEE YOU IN THE GARDEN.", 22, 282, 1);
+
+  pxText("TIP: MACH 'N SCREENSHOT", 18, 308, 1);
+}
+
+// --- main loop
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.033, (now-last)/1000);
+  last = now;
+
+  game.stageTime += dt;
+  game.totalTime += dt;
+
+  hudTime.textContent = "TIME: " + fmtTime(game.totalTime);
+
+  // update stage
+  if(game.stage==="BOOT") updateBoot(dt);
+  if(game.stage==="70s") update70s(dt);
+  if(game.stage==="80s") update80s(dt);
+  if(game.stage==="90s") update90s(dt);
+  if(game.stage==="FINAL") updateFinal(dt);
+
+  // render stage
+  if(game.stage==="BOOT") renderBoot();
+  if(game.stage==="70s") render70s();
+  if(game.stage==="80s") render80s();
+  if(game.stage==="90s") render90s();
+  if(game.stage==="FINAL") renderFinal();
+
+  // auto progress if stage time exceeded
+  if(game.stage!=="FINAL" && game.stageTime > (stageDur[game.stage] || 120)){
+    nextStage();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// init HUD
+hudStage.textContent = "STAGE: " + game.stage;
+hudScore.textContent = "SCORE: " + String(game.score).padStart(4,"0");
+hudTime.textContent  = "TIME: 00:00";
+resetStageObjects("BOOT");
+renderBoot();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
